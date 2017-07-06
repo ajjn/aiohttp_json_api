@@ -610,6 +610,12 @@ class Schema(metaclass=SchemaMeta):
             field = self._fields_by_key[key]
             field.validate_post_decode(self, data, sp, context)
 
+    def clone_resource(self, resource):
+        return copy.deepcopy(resource)
+
+    def is_resources_equal(self, resource, another_resource):
+        return resource == another_resource
+
     # CRUD (resource)
     # ---------------
 
@@ -683,11 +689,12 @@ class Schema(metaclass=SchemaMeta):
         if not isinstance(resource, self.resource_class):
             resource = await self.query_resource(resource, context, **kwargs)
 
+        updated_resource = self.clone_resource(resource)
         for key, (data, sp) in memo.items():
             field = self._fields_by_key[key]
             await field.set(self, resource, data, sp, **kwargs)
 
-        return resource
+        return resource, updated_resource
 
     async def delete_resource(self, resource, context, **kwargs):
         """
@@ -732,8 +739,9 @@ class Schema(metaclass=SchemaMeta):
         if not isinstance(resource, self.resource_class):
             resource = await self.query_resource(resource, context, **kwargs)
 
-        await field.set(self, resource, decoded, sp, **kwargs)
-        return resource
+        updated_resource = self.clone_resource(resource)
+        await field.set(self, updated_resource, decoded, sp, **kwargs)
+        return resource, updated_resource
 
     async def add_relationship(self, relation_name, resource,
                                data, sp, context, **kwargs):
@@ -764,8 +772,9 @@ class Schema(metaclass=SchemaMeta):
         if not isinstance(resource, self.resource_class):
             resource = await self.query_resource(resource, context, **kwargs)
 
-        await field.add(self, resource, decoded, sp, **kwargs)
-        return resource
+        updated_resource = self.clone_resource(resource)
+        await field.add(self, updated_resource, decoded, sp, **kwargs)
+        return resource, updated_resource
 
     async def remove_relationship(self, relation_name, resource,
                                   data, sp, context, **kwargs):
@@ -796,7 +805,9 @@ class Schema(metaclass=SchemaMeta):
         if not isinstance(resource, self.resource_class):
             resource = await self.query_resource(resource, context, **kwargs)
 
-        await field.remove(self, resource, decoded, sp, **kwargs)
+        updated_resource = self.clone_resource(resource)
+        await field.remove(self, updated_resource, decoded, sp, **kwargs)
+        return resource, updated_resource
 
     # Querying
     # --------
